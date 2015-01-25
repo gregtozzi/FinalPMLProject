@@ -1,0 +1,74 @@
+---
+title: "Practical Machine Learning Project"
+author: "Greg Tozzi"
+date: "January 25, 2015"
+output: html_document
+---
+
+###Executive Summary
+I built a bagging model to classify the training set.  The assignment is interesting because `classe` is actually a single-valued function of `num_window`.  A review of the [paper describing the initial use of the data](http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf) will explain why this is the case.  However, in the spirit of developing a model that could predict future values generated outside of the study at hand, I chose to cut the `num_window` data and others that would not be available or meaningful to future applications.
+
+###Load and process the data
+
+```{r}
+# Load required libraries
+require(RCurl)
+require(ipred)
+require(caret)
+```
+
+
+```{r}
+# Load the data
+trainCSV <- getURL("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+trainSet <- read.csv(textConnection(trainCSV))
+testCSV <- getURL("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+testSet <- read.csv(textConnection(testCSV))
+
+# Cut columns for which there are no data in the test set.
+cutCols <- which(is.na(testSet[1,]))
+testSetCut <- testSet[, -cutCols]
+trainSetCut <- trainSet[, -cutCols]
+
+# Cut the data that wouldn't be available to predict performance from future data.
+testSetCut <- testSetCut[, 8:ncol(testSetCut)]
+trainSetCut <- trainSetCut[, 8:ncol(trainSetCut)]
+```
+
+###Build a Machine Learning Model and Estimate Out-of-sample Error
+We're dealing with 52 covariates and 19,622 observations.  Bagging is an appropriate for large unbalanced data sets such as this one.  I relied heavily on the `ipred` [documentation](http://cran.r-project.org/web/packages/ipred/ipred.pdf) in developing the model.
+
+```{r}
+# Train the model using the default values.  Set coob = TRUE, however, to
+# return an estimate of the out of sample error.
+set.seed(98)
+trainModBag <- bagging(classe ~ ., data = trainSetCut, coob = TRUE)
+trainModBag
+```
+
+The out-of-sample error estimate is very small, so I proceed with confidence that this model should return an acceptable result when applied to the test set.
+
+###Use the Model to Classify the Test Data
+```{r}
+# Classify the test set
+answers <- as.character(predict(trainModBag, testSetCut))
+answers
+```
+
+The model provides a set of completely correct predictions on the test data.
+
+###Alternative Method
+Because, in this case, `classe` is defined completely by `num_window`, an alternative approach is to use k-nearest neighbors with $k = 1$, essentially a lookup table.
+
+```{r}
+extractClasse <- function(window) {
+        tempVec <- trainSet[trainSet$num_window == window, "classe"]
+        tempVec[1]
+}
+
+answers <- unlist(lapply(testSet$num_window, FUN = extractClasse))
+answers <- as.character(answers)
+answers
+```
+
+This is far more efficient but won't perform well in classifying data from outside of the original experiment.
