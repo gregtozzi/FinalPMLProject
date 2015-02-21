@@ -52,13 +52,13 @@ The out-of-sample error estimate is very small, so I proceed with confidence tha
 ```{r}
 # Classify the test set
 answers <- as.character(predict(trainModBag, testSetCut))
-answers
+print(answers)
 ```
 
 The model provides a set of completely correct predictions on the test data.
 
 ###Alternative Method
-Because, in this case, `classe` is defined completely by `num_window`, an alternative approach is to use k-nearest neighbors with $k = 1$, essentially a lookup table.
+Because, in this case, `classe` is defined completely by `num_window`, an alternative approach is to use k-nearest neighbors with `k = 1`, essentially a lookup table.
 
 ```{r}
 extractClasse <- function(window) {
@@ -68,7 +68,7 @@ extractClasse <- function(window) {
 
 answers <- unlist(lapply(testSet$num_window, FUN = extractClasse))
 answers <- as.character(answers)
-answers
+print(answers)
 ```
 
 This is far more efficient but won't perform well in classifying data from outside of the original experiment.
